@@ -1,0 +1,8 @@
+streamlit>=1.36
+openai>=1.30
+python-dotenv>=1.0
+rank_bm25>=0.2
+numpy>=1.26
+onnxruntime>=1.17
+tokenizers>=0.15
+pypdf>=4,<7

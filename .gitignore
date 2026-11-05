@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# rag/ 构建产物不上传 git：走 GitHub Release 的 rag-v1.0.zip（见 README「B 复现」）
+# 整目录忽略，避免解压 Release 后 rag/README.md 等文件以 untracked 出现
+rag/
+dist/
+*.pkl
+*.npy
+chunks.jsonl
+feedback.csv
+
+# 运行产物（eval_report.md 是仓库既有文件，保持 tracked，不在此列）
+eval_diagnosis.md
+reclassify_review.csv
+
+.DS_Store
