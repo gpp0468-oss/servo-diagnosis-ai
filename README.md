@@ -259,4 +259,4 @@ python embed_build.py
 
 ---
 
-*作者：gpp0468-oss · 自动化本科 · 4 年伺服/PLC 现场排故*
+*作者：gpp0468-oss · 4 年伺服/PLC 现场排故*
