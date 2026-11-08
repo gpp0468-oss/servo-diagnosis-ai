@@ -129,7 +129,9 @@
 ├── *.py                   # 脚本平铺于根目录（角色见下「脚本角色」）
 ├── requirements.txt       # 评测核心依赖（无需 API key）
 ├── requirements-ui.txt    # 仅 Streamlit 界面需要（streamlit/openai/dotenv）
-└── eval_report.md         # 最近一次评测报告（运行 eval_run.py 会覆盖）
+├── eval_report.md         # 最近一次评测报告（运行 eval_run.py 会覆盖）
+├── eval_llm_notes.md      # LLM 层实测：两次运行 + 人工判分（eval_llm.py 产出）
+└── eval_llm_report.md     # 最近一次 LLM 评测汇总
 ```
 
 `docs/01-开发文档.md` 是 v1 早期设计稿，其目录结构（`demo_starter/`、`启动.bat`）已不适用，实际结构以本 README 为准。
@@ -144,6 +146,7 @@
 | 索引构建 | `rag_build` `embed_build` `tokenizer_util` | ✅ 仅 C 档重建时 |
 | 界面 | `ui/app.py` | ⭕ 可选；**调 DeepSeek，需 API key** |
 | 评测与审计 | `eval_run` `eval_diagnose` `confidence_audit` `diag_rank` `diag_rank_show` `audit_rules` `check_leak` | ❌ 手动运行；**本仓库所有指标由它们产出** |
+| **LLM 层评测** | `eval_llm` | ❌ 手动运行；**需自备 key**，产出见 [eval_llm_notes.md](eval_llm_notes.md) |
 | 一次性迁移 | `fix_categories` `fix_type` `reclassify` `mark_leaked` `kb_apply` | ❌ 数据来路，保留供追溯 |
 | 文档生成 | `fta_build` | ❌ 产出 `docs/03-FTA故障树.md`，无代码消费 |
 
@@ -260,8 +263,23 @@ streamlit run ui/app.py
 
 ### UI 的已知局限（重要）
 
-- **那段 LLM 生成没有任何评测支撑。** `SYSTEM_PROMPT` 要求模型输出「3 个互斥假设 + 支持/反驳证据 + 剪枝理由 + JSON」，格式好看，但**100% 的公开指标（93% / 67% / 83% / 70% / 1%）都不包含它**——它们全部来自不调模型的评测核心。
-- **不填 key 就跑不了。** 所以别人 clone 下来能免费复现的是评测核心，不是 UI 的效果。
+- **我试着测它，结果发现评测工具本身不成立。** 写了 [`eval_llm.py`](eval_llm.py)，对 18 条无码用例跑了 DeepSeek，两次结果：
+
+  | 指标 | 纯检索 Top-4 | 第 1 次 | 第 2 次 |
+  |---|---|---|---|
+  | 原因术语覆盖 | 92.6% | 85.6% | 82.4% |
+  | 故障大类命中 | — | 12/18 = **67%** | 11/18 = **61%** |
+  | 输出可解析 | — | 18/18 | 18/18 |
+  | 平均延迟 | — | 10.1 s | 9.7 s |
+
+  **同一批题、`temperature=0`，大类命中就差了 6 个百分点**——n=18 的单次结果不够用。
+
+- **机械指标会低估它。** 期望术语写「背隙」，模型答「回差」；期望「回零标志」，模型答「回原完成标志位」——语义全对，字面判错。人工逐条读，16 条完整覆盖 + 2 条部分覆盖、0 条完全没覆盖；但**这是作者自判，不独立、不可复现**。
+
+- **所以结论只能是：收益测不出来，成本算得清。** 评测核心 8 ms / 0 token，检索 + DeepSeek 约 9.7 s / 2200 token 一次，**延迟约 1200 倍**。它输出更完整、更像专家报告、100% 结构可解析——但这三样都不等于"更准"。
+
+  详细过程见 [eval_llm_notes.md](eval_llm_notes.md)。
+
 - 归档改善会**改写 `data/cases.csv` 并重算 `rag/` 索引**，跑完指标会变（等价于 C 档重建，不再等于 `rag-v1.0`）。想恢复：重下 Release 的 `rag-v1.0.zip`，`git checkout data/cases.csv`。
 
 ---
