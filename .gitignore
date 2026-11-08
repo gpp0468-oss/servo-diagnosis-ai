@@ -10,7 +10,8 @@ dist/
 *.pkl
 *.npy
 chunks.jsonl
-feedback.csv
+
+# 注意：data/feedback.csv 是「归档改善」的种子数据（3 条脱敏现场经验），要上传
 
 # 运行产物（eval_report.md 是仓库既有文件，保持 tracked，不在此列）
 eval_diagnosis.md

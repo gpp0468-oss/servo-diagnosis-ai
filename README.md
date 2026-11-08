@@ -1,6 +1,6 @@
 # 伺服排故系统 · 一个诚实的复盘
 
-> 用混合检索（BM25 + 中文嵌入向量）+ 243 条规则库做工业设备故障诊断：辅助排查站住了，判断对错没站住。
+> 混合检索（BM25 + 中文嵌入向量）+ 243 条规则库 + 可选的 DeepSeek 生成：辅助排查站住了，判断对错没站住。
 
 [![data](https://img.shields.io/badge/rules-243条-blue)]() [![codes](https://img.shields.io/badge/codes-122个-blue)]() [![eval](https://img.shields.io/badge/eval-33条-green)]() [![L0](https://img.shields.io/badge/L0命中-93%25-brightgreen)]()
 
@@ -21,7 +21,16 @@
 
 第二个结果直接推翻了「加个分数阈值就能弃权」这个方案，也说明了为什么必须建**证据门**而不是分数门。
 
-完整推演整理成了一篇长文：[《我给伺服排故做了一套 AI：辅助排查站住了，判断对错没站住》](https://zhuanlan.zhihu.com/p/2102843627479343706)；**本仓库只保留可复现的代码、数据与短文档**，不含长文正文。
+完整推演整理成了一篇长文：[《我给伺服排故做了一套 RAG 系统：辅助排查站住了，判断对错没站住》](https://zhuanlan.zhihu.com/p/2102843627479343706)；**本仓库只保留可复现的代码、数据与短文档**，不含长文正文。
+
+### 两个组件，两套可复现性
+
+| 组件 | 入口 | 有生成式模型？ | 可复现性 |
+|---|---|---|---|
+| **评测核心**（本仓库主体） | `eval_run.py` / `diag.py` / `rag_query.py` | ❌ 只有 bge-small-zh 嵌入模型（给检索打分） | **完全可复现**：本地跑、不联网、不要 API key |
+| **Streamlit 界面**（[`ui/app.py`](ui/app.py)） | `streamlit run ui/app.py` | ✅ DeepSeek `deepseek-chat` / `deepseek-reasoner` + ToT 假设生成 | **需自备 API key**，不花钱跑不起来 |
+
+**这个区别很重要**：所有对外公布的数字（93% / 67% / 83% / 70% / 1%）**全部来自评测核心，一个模型调用都没有**。UI 里那段 LLM 生成**没有任何指标支撑**——见下「UI 的已知局限」。
 
 ---
 
@@ -102,7 +111,10 @@
 ├── data/
 │   ├── rules.csv          # 243 条故障规则：原因→判据→处置→成本
 │   ├── cases.csv          # 17 条现场案例
-│   └── eval.csv           # 33 条评测集（与知识库物理隔离）
+│   ├── eval.csv           # 33 条评测集（与知识库物理隔离）
+│   └── feedback.csv       # 3 条«归档改善»种子数据（脱敏现场经验）
+├── ui/
+│   └── app.py             # Streamlit 界面（需 API key，见「Streamlit 界面」）
 ├── docs/
 │   ├── 01-开发文档.md      # 系统架构与设计决策（v1 早期设计稿）
 │   ├── 02-数据体检.md      # 五类脏数据与审计盲区
@@ -115,20 +127,22 @@
 │   ├── 09-置信度审计.md    # 检索分数不区分对错（过度自信率 100%）
 │   └── notes/00-伺服原理笔记.md   # ⚠ 运行依赖：rag_build.py:147 会直接 open 它
 ├── *.py                   # 脚本平铺于根目录（角色见下「脚本角色」）
+├── requirements.txt       # 评测核心依赖（无需 API key）
+├── requirements-ui.txt    # 仅 Streamlit 界面需要（streamlit/openai/dotenv）
 └── eval_report.md         # 最近一次评测报告（运行 eval_run.py 会覆盖）
 ```
 
-**本仓库不含 `app.py` / Streamlit 界面。** v1.0 定位是研究/评测仓库，UI 留到 v1.1。
 `docs/01-开发文档.md` 是 v1 早期设计稿，其目录结构（`demo_starter/`、`启动.bat`）已不适用，实际结构以本 README 为准。
 
 ### 脚本角色
 
-21 个脚本平铺在根目录，**真正跑在运行时链路上的只有 8 个**，其余是评测、迁移与文档工具：
+21 个根目录脚本 + 1 个 UI 脚本，**真正跑在评测链路里的只有 8 个**，其余是评测、迁移与文档工具：
 
 | 类别 | 脚本 | 是否在运行时链路 |
 |---|---|---|
 | 运行时核心 | `csvio` `kb_category` `diag` `kb_dedupe` `rag_query` | ✅ 被产品代码 import |
 | 索引构建 | `rag_build` `embed_build` `tokenizer_util` | ✅ 仅 C 档重建时 |
+| 界面 | `ui/app.py` | ⭕ 可选；**调 DeepSeek，需 API key** |
 | 评测与审计 | `eval_run` `eval_diagnose` `confidence_audit` `diag_rank` `diag_rank_show` `audit_rules` `check_leak` | ❌ 手动运行；**本仓库所有指标由它们产出** |
 | 一次性迁移 | `fix_categories` `fix_type` `reclassify` `mark_leaked` `kb_apply` | ❌ 数据来路，保留供追溯 |
 | 文档生成 | `fta_build` | ❌ 产出 `docs/03-FTA故障树.md`，无代码消费 |
@@ -226,13 +240,39 @@ python embed_build.py
 
 ---
 
+## Streamlit 界面（可选）
+
+`ui/app.py` 是一个四模式的网页原型。**它不是评测核心，也不产出任何指标**——只是把 `rag_query` / `diag` / `eval_run` 包成可点的界面。
+
+```powershell
+pip install -r requirements.txt -r requirements-ui.txt
+streamlit run ui/app.py
+```
+
+左侧填 **DeepSeek API Key**（`https://platform.deepseek.com` 申请，或设环境变量 `DEEPSEEK_API_KEY`），模型可选 `deepseek-chat` / `deepseek-reasoner`。
+
+| 模式 | 做什么 | 用不用模型 |
+|---|---|---|
+| 单轮问答 | 现象 → 规则/检索 → DeepSeek 出结论 | ✅ |
+| 分步诊断 | 生成互斥假设表 → 逐条标记 → 自动剪枝 → 给下一步 | ✅ |
+| 评测 | 跑 `eval_run`，界面里看 33 条结果并下载报告 | ❌ 纯本地 |
+| 归档改善 | 现场经验入 `data/feedback.csv` → 审核 → 合并进 `cases.csv` 并重建索引 | ❌ 纯本地 |
+
+### UI 的已知局限（重要）
+
+- **那段 LLM 生成没有任何评测支撑。** `SYSTEM_PROMPT` 要求模型输出「3 个互斥假设 + 支持/反驳证据 + 剪枝理由 + JSON」，格式好看，但**100% 的公开指标（93% / 67% / 83% / 70% / 1%）都不包含它**——它们全部来自不调模型的评测核心。
+- **不填 key 就跑不了。** 所以别人 clone 下来能免费复现的是评测核心，不是 UI 的效果。
+- 归档改善会**改写 `data/cases.csv` 并重算 `rag/` 索引**，跑完指标会变（等价于 C 档重建，不再等于 `rag-v1.0`）。想恢复：重下 Release 的 `rag-v1.0.zip`，`git checkout data/cases.csv`。
+
+---
+
 ## 设计决策
 
 | 决策 | 选择 | 代价 |
 |---|---|---|
 | 分类维度 | 按**故障源**，不按现象 | 树必须互斥，同一病根的多表现要靠第二维 |
 | 数据结构 | `category` 单值 + `phenomenon_tags` 多值 | 多值标签**未接进检索**，仅用于评测判分放宽（实测只多对 1 行） |
-| 推理路径 | 带码走规则直出，无码才走 LLM | 覆盖不全，无码时完全依赖检索 |
+| 推理路径 | 评测核心：带码走规则直出，无码走检索+模板（**无 LLM**）；UI：一律可调 DeepSeek | 无码时效果完全依赖检索；UI 那条无评测 |
 | 人机边界 | AI 只摆清事实，不做决定 | 无法自动化闭环 |
 
 ---
@@ -258,6 +298,7 @@ python embed_build.py
 这个项目**没有真实用户**，所有指标来自自建评测集与模拟，仅供验证技术路线。
 
 - 评测覆盖"找没找到"，不覆盖"下一步查哪个"（后者无标准答案）
+- **UI 里 DeepSeek 生成的诊断建议，一条题都没有测过**——33 条评测集测的是检索和分类，不是生成质量
 - 排序层效果只能靠模拟，而模拟依赖手工设定的似然参数
 - 判据质量是瓶颈：26 个码判据为空，其余多为"查看/测量……"
 - `eval_report.md` 是 2026-11-05 的历史结果，任何一次 `eval_run.py` 都会覆盖它

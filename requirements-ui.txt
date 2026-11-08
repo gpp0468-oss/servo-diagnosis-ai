@@ -1,0 +1,4 @@
+# 仅 Streamlit 界面（ui/app.py）需要；核心评测链路（A/B/C 三档）不需要这些
+streamlit>=1.36
+openai>=1.30
+python-dotenv>=1.0
