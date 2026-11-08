@@ -28,7 +28,7 @@
 | 组件 | 入口 | 有生成式模型？ | 可复现性 |
 |---|---|---|---|
 | **评测核心**（本仓库主体） | `eval_run.py` / `diag.py` / `rag_query.py` | ❌ 只有 bge-small-zh 嵌入模型（给检索打分） | **完全可复现**：本地跑、不联网、不要 API key |
-| **Streamlit 界面**（[`ui/app.py`](ui/app.py)） | `streamlit run ui/app.py` | ✅ DeepSeek `deepseek-chat` / `deepseek-reasoner` + ToT 假设生成 | **需自备 API key**，不花钱跑不起来 |
+| **Streamlit 界面**（[`ui/app.py`](ui/app.py)） | `streamlit run ui/app.py` | ✅ DeepSeek `deepseek-chat` / `deepseek-reasoner`，**结构化提示（三假设 + 证据 + 剪枝）**，单轮生成，无搜索/回溯 | **需自备 API key**，不花钱跑不起来 |
 
 **这个区别很重要**：所有对外公布的数字（93% / 67% / 83% / 70% / 1%）**全部来自评测核心，一个模型调用都没有**。UI 里那段 LLM 生成**没有任何指标支撑**——见下「UI 的已知局限」。
 

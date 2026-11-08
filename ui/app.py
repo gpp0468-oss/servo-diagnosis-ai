@@ -489,6 +489,6 @@ else:
     render_feedback()
 
 st.divider()
-st.caption("链路：L0 规则 → L1 域分类 → 混合检索 → DeepSeek + ToT → 人工确认")
+st.caption("链路：L0 规则 → L1 域分类 → 混合检索 → DeepSeek 结构化生成（三假设 + 证据 + 剪枝） → 人工确认")
 
 
