@@ -1,6 +1,6 @@
 # 伺服排故 AI 系统 · 一个诚实的复盘
 
-> 用 RAG + 规则路由做工业设备故障诊断，然后把它的核心功能证伪了。
+> 用 RAG + 规则路由做工业设备故障诊断：辅助排查站住了，判断对错没站住。
 
 [![data](https://img.shields.io/badge/rules-243条-blue)]() [![codes](https://img.shields.io/badge/codes-122个-blue)]() [![eval](https://img.shields.io/badge/eval-33条-green)]() [![L0](https://img.shields.io/badge/L0命中-93%25-brightgreen)]()
 
